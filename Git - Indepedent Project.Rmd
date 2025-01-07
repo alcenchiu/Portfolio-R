@@ -1,0 +1,235 @@
+---
+title: "Crime vs. Nonprofits"
+author: "Alcen Chiu"
+date: "2023-01-31"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+write.csv(new.chiacgo.22, "C:\\Users\\alcenchiu\\Desktop\\newchicago2022.csv", row.names = FALSE)
+
+#Comparing 2022 and 2020
+ch.20 <- read.csv("bmf.bm2004.csv", header = TRUE, sep = ",")
+ch.22 <- read.csv("bmf.bm2208.csv", header = TRUE, sep = ",")
+new.ch.20 <- ch.20[ch.20$CITY == "CHICAGO", ]
+new.ch.22 <- ch.22[ch.22$CITY == "CHICAGO", ]
+oldorgs <- new.ch.20$NAME[new.ch.20$NAME %in% new.ch.22$NAME]
+
+#Number of Orgs vs. Year
+graph1 <- data.frame(y1 = c(8871, 9183, 9966, 10737, 10826, 11165, 11726, 11999, 12466, 12866, 11405, 11479, 11889, 12767, 13074, 13260, 12721, 12192, 12084, 11804),
+                    x1 = 2001:2020)
+x1 = 2001:2020
+y1 = c('8871', '9183', '9966', '10737', '10826', '11165', '11726', '11999', '12466', '12866', '11405', '11479', '11889', '12767', '13074', '13260', '12721', '12192', '12084', '11804')
+plot(x1, y1,type="p", xlab = "year", ylab = "number of 501(c)3 nonprofits", col="black")
+abline(lm(y1~x1), lty = 'dashed')
+
+#Chicago 2022
+```{r NCCS Data 2022}
+ch.22 <- read.csv("bmf.bm2208.csv", header = TRUE, sep = ",")
+new.ch.22 <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN",  ]
+crimprevorg <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN" & ch.22$NTEECC %in% c('I20', 'I21', 'F42', 'I31', 'I40', 'I43', 'I44'),  ]
+neidevorg <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN" & ch.22$NTEECC %in% c('L25', 'L30', 'L80', 'L81', 'P28', 'S20', 'S21', 'S22', 'S30', 'S31'),  ]
+subabprog <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN" & ch.22$NTEECC %in% c('F20', 'F21', 'F22'),  ]
+workdevprog <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN" & ch.22$NTEECC %in% c('J22', 'J30'),  ]
+youthprog <- ch.22[ch.22$CITY == "CHICAGO" & ch.22$SUBSECCD == '3' & ch.22$OUTNCCS == "IN" & ch.22$NTEECC %in% c('N60', 'O20', 'O21', 'O22', 'O23', 'O30', 'O31', 'O40', 'O50', 'O51', 'O52', 'O53', 'O54', 'O55', 'P27', 'P30'),  ]
+```
+#Chicago 2020
+```{r NCCS Data 2020}
+ch.20 <- read.csv("bmf.bm2004.csv", header = TRUE, sep = ",")
+new.ch.20 <- ch.20[ch.20$CITY == "CHICAGO" & ch.20$SUBSECCD == '3' & ch.20$OUTNCCS == "IN",  ]
+```
+#Chicago 2019
+```{r NCCS Data 2019}
+ch.19 <- read.csv("bmf.bm1908.csv", header = TRUE, sep = ",")
+new.ch.19 <- ch.19[ch.19$CITY == "CHICAGO" & ch.19$SUBSECCD == '3' & ch.19$OUTNCCS == "IN",  ]
+```
+#Chicago 2018
+```{r NCCS Data 2018}
+ch.18 <- read.csv("bmf.bm1812.csv", header = TRUE, sep = ",")
+new.ch.18 <- ch.18[ch.18$CITY == "CHICAGO" & ch.18$SUBSECCD == '3' & ch.18$OUTNCCS == "IN",  ]
+```
+#Chicago 2017
+```{r NCCS Data 2017}
+ch.17 <- read.csv("bmf.bm1712.csv", header = TRUE, sep = ",")
+new.ch.17 <- ch.17[ch.17$CITY == "CHICAGO" & ch.17$SUBSECCD == '3' & ch.17$OUTNCCS == "IN",  ]
+```
+#Chicago 2016
+```{r NCCS Data 2016}
+ch.16 <- read.csv("bmf.bm1608.csv", header = TRUE, sep = ",")
+new.ch.16 <- ch.16[ch.16$CITY == "CHICAGO" & ch.16$SUBSECCD == '3' & ch.16$OUTNCCS == "IN",  ]
+```
+#Chicago 2015
+```{r NCCS Data 2015}
+ch.15 <- read.csv("bmf.bm1512.csv", header = TRUE, sep = ",")
+new.ch.15 <- ch.15[ch.15$CITY == "CHICAGO" & ch.15$SUBSECCD == '3' & ch.15$OUTNCCS == "IN",  ]
+```
+#Chicago 2014
+```{r NCCS Data 2014}
+ch.14 <- read.csv("bmf.bm1412.csv", header = TRUE, sep = ",")
+new.ch.14 <- ch.14[ch.14$CITY == "CHICAGO" & ch.14$SUBSECCD == '3' & ch.14$OUTNCCS == "IN",  ]
+```
+#Chicago 2013
+```{r NCCS Data 2013}
+ch.13 <- read.csv("bmf.bm1312.csv", header = TRUE, sep = ",")
+new.ch.13 <- ch.13[ch.13$CITY == "CHICAGO" & ch.13$SUBSECCD == '3' & ch.13$OUTNCCS == "IN",  ]
+```
+#Chicago 2012
+```{r NCCS Data 2012}
+ch.12 <- read.csv("bmf.bm1212.csv", header = TRUE, sep = ",")
+new.ch.12 <- ch.12[ch.12$CITY == "CHICAGO" & ch.12$SUBSECCD == '3' & ch.12$OUTNCCS == "IN",  ]
+```
+#Chicago 2011
+```{r NCCS Data 2011}
+ch.11 <- read.csv("bmf.bm1112.csv", header = TRUE, sep = ",")
+new.ch.11 <- ch.11[ch.11$CITY == "CHICAGO" & ch.11$SUBSECCD == '3' & ch.11$OUTNCCS == "IN",  ]
+```
+#Chicago 2010
+```{r NCCS Data 2010}
+ch.10 <- read.csv("bmf.bm1011.csv", header = TRUE, sep = ",")
+new.ch.10 <- ch.10[ch.10$CITY == "CHICAGO" & ch.10$SUBSECCD == '3' & ch.10$OUTNCCS == "IN",  ]
+```
+#Chicago 2009
+```{r NCCS Data 2009}
+ch.09 <- read.csv("bmf.bm0910.csv", header = TRUE, sep = ",")
+new.ch.09 <- ch.09[ch.09$CITY == "CHICAGO" & ch.09$SUBSECCD == '3' & ch.09$OUTNCCS == "IN",  ]
+```
+#Chicago 2008
+```{r NCCS Data 2008}
+ch.08 <- read.csv("bmf.bm0812.csv", header = TRUE, sep = ",")
+new.ch.08 <- ch.08[ch.08$CITY == "CHICAGO" & ch.08$SUBSECCD == '3' & ch.08$OUTNCCS == "IN",  ]
+```
+#Chicago 2007
+```{r NCCS Data 2007}
+ch.07 <- read.csv("bmf.bm0709.csv", header = TRUE, sep = ",")
+new.ch.07 <- ch.07[ch.07$CITY == "CHICAGO" & ch.07$SUBSECCD == '3',  ]
+```
+#Chicago 2006
+```{r NCCS Data 2006}
+ch.06 <- read.csv("bmf.bm0611.csv", header = TRUE, sep = ",")
+new.ch.06 <- ch.06[ch.06$CITY == "CHICAGO" & ch.06$SUBSECCD == '3' & ch.06$OUTNCCS == "IN",  ]
+```
+#Chicago 2005
+```{r NCCS Data 2005}
+ch.05 <- read.csv("bmf.bm0511.csv", header = TRUE, sep = ",")
+new.ch.05 <- ch.05[ch.05$CITY == "CHICAGO" & ch.05$SUBSECCD == '3' & ch.05$OUTNCCS == "IN",  ]
+```
+#Chicago 2004
+```{r NCCS Data 2004}
+ch.04 <- read.csv("bmf.bm0412.csv", header = TRUE, sep = ",")
+new.ch.04 <- ch.04[ch.04$CITY == "CHICAGO" & ch.04$SUBSECCD == '3' & ch.04$OUTNCCS == "IN",  ]
+```
+#Chicago 2003
+```{r NCCS Data 2003}
+ch.03 <- read.csv("bmf.bm0311.csv", header = TRUE, sep = ",")
+new.ch.03 <- ch.03[ch.03$CITY == "CHICAGO" & ch.03$SUBSECCD == '3' & ch.03$OUTNCCS == "IN",  ]
+```
+#Chicago 2002
+```{r NCCS Data 2002}
+ch.02 <- read.csv("bmf.bm0207.csv", header = TRUE, sep = ",")
+new.ch.02 <- ch.02[ch.02$CITY == "CHICAGO" & ch.02$SUBSECCD == '3' & ch.02$OUTNCCS == "IN",  ]
+```
+#Chicago 2001
+```{r NCCS Data 2001}
+ch.01 <- read.csv("bmf.bm0107.csv", header = TRUE, sep = ",")
+new.ch.01 <- ch.01[ch.01$CITY == "CHICAGO" & ch.01$SUBSECCD == '3' & ch.01$OUTNCCS == "IN",  ]
+```
+
+```{r NCCS Data Comparison}
+new_list <- list(new.ch.19$NAME,new.ch.18$NAME,new.ch.17$NAME,new.ch.16$NAME,new.ch.15$NAME,new.ch.14$NAME,new.ch.13$NAME,new.ch.12$NAME,new.ch.11$NAME,new.ch.10$NAME,new.ch.09$NAME,new.ch.08$NAME,new.ch.07$NAME,new.ch.06$NAME,new.ch.05$NAME,new.ch.04$NAME,new.ch.03$NAME,new.ch.02$NAME,new.ch.01$NAME)
+new <- Reduce(function(x, y) merge(x, y, all=TRUE), new_list)
+
+df_list <- list(new.ch.19$NAME,new.ch.18$NAME)
+Reduce(function(x, y) merge(x, y, all=TRUE), df_list)
+rm(new_list)
+duplicated(df)
+if (new.ch.19$NAME == new.ch.18$NAME) {print("TRUE")} else {print("FALSE")}
+write.csv(new.ch.19, "C:\\Users\\alcenchiu\\Desktop\\19.csv", row.names = FALSE)
+write.csv(new.ch.18, "C:\\Users\\alcenchiu\\Desktop\\18.csv", row.names = FALSE)
+write.csv(new.ch.17, "C:\\Users\\alcenchiu\\Desktop\\17.csv", row.names = FALSE)
+write.csv(new.ch.16, "C:\\Users\\alcenchiu\\Desktop\\16.csv", row.names = FALSE)
+write.csv(new.ch.15, "C:\\Users\\alcenchiu\\Desktop\\15.csv", row.names = FALSE)
+write.csv(new.ch.14, "C:\\Users\\alcenchiu\\Desktop\\14.csv", row.names = FALSE)
+write.csv(new.ch.13, "C:\\Users\\alcenchiu\\Desktop\\13.csv", row.names = FALSE)
+write.csv(new.ch.12, "C:\\Users\\alcenchiu\\Desktop\\12.csv", row.names = FALSE)
+write.csv(new.ch.11, "C:\\Users\\alcenchiu\\Desktop\\11.csv", row.names = FALSE)
+write.csv(new.ch.10, "C:\\Users\\alcenchiu\\Desktop\\10.csv", row.names = FALSE)
+write.csv(new.ch.09, "C:\\Users\\alcenchiu\\Desktop\\09.csv", row.names = FALSE)
+write.csv(new.ch.08, "C:\\Users\\alcenchiu\\Desktop\\08.csv", row.names = FALSE)
+write.csv(new.ch.07, "C:\\Users\\alcenchiu\\Desktop\\07.csv", row.names = FALSE)
+write.csv(new.ch.06, "C:\\Users\\alcenchiu\\Desktop\\06.csv", row.names = FALSE)
+write.csv(new.ch.05, "C:\\Users\\alcenchiu\\Desktop\\05.csv", row.names = FALSE)
+write.csv(new.ch.04, "C:\\Users\\alcenchiu\\Desktop\\04.csv", row.names = FALSE)
+write.csv(new.ch.03, "C:\\Users\\alcenchiu\\Desktop\\03.csv", row.names = FALSE)
+write.csv(new.ch.02, "C:\\Users\\alcenchiu\\Desktop\\02.csv", row.names = FALSE)
+write.csv(new.ch.01, "C:\\Users\\alcenchiu\\Desktop\\01.csv", row.names = FALSE)
+
+```
+
+library(dplyr)
+
+# create a data frame
+df <- data.frame(
+  group = c("A", "A", "B", "B", "B"),
+  grouptwo = c(1, 2, 3, 4, 5),
+  value = c(1, 2, 3, 4, 5),
+  weight = c(0.4, 0.3, 0.1, 0.9, 0.7)
+)
+
+# group the data frame by the "group" variable
+df_grouped <- df %>% group_by(group)
+
+# compute the mean of "value" for each group
+df_summary <- df_grouped %>% summarise(mean_value = mean(value))
+
+# print the summary data frame
+print(df_summary)
+
+df_summary <- df %>% 
+  group_by(group, grouptwo) %>% 
+  summarise(CPC = weighted.mean(x = value, w = weight)) 
+  
+FinalData4 <- FinalData3 %>% 
+  group_by(Race, Income_Bin) %>% 
+  summarize(CPC = weighted.mean(x = 'Crime/Capita', w = Households)) 
+  
+# group the data frame by the "group" variable
+data_grouped <- FinalData3 %>% group_by(Race, Income_Bin)
+
+# compute the mean of "value" for each group
+data_summary <- data_grouped %>% summarise(CPC = weighted.mean(x='Crime/Capita',w=Households))
+
+# print the summary data frame
+print(df_summary)
+
+sum_of_CPC <- FinalData3 %>%
+  group_by(Race, Income_Bin) %>%
+  summarize(sum_of_CPC = sum(`Crime/Capita`))
+  
+sum_of_households <- FinalData3 %>%
+  group_by(Race, Income_Bin) %>%
+  summarize(sum_of_households = sum(Households))
+  
+CPCxHouseholds <- FinalData3 %>%
+  group_by(Race, Income_Bin) %>%
+  mutate(CPCxHouseholds = `Crime/Capita` * Households) %>%
+  summarize(CPCxHouseholds = sum(CPCxHouseholds))
+
+FinalData5 <- cbind(CPCxHouseholds, sum_of_households)
+FinalData5 <- FinalData5 %>% select(-one_of('Race...4','Income_Bin...5'))
+
+library(dplyr) 
+FinalData6 <- FinalData5 %>%
+  group_by(Race...1, Income_Bin...2) %>%
+  summarize(CPC = divide(x = CPCxHouseholds, y = sum_of_households))
+  
+FinalData6 <- merge(CPCxHouseholds, sum_of_households, by = c("Race", "Income_Bin")) %>%
+  mutate(CPC = CPCxHouseholds / sum_of_households)
+  
+write.csv(FinalData6, "C:\\Users\\alcenchiu\\Downloads\\FinalData6.csv", row.names = FALSE)
+
+library(ggplot2)
+ggplot(FinalData6, aes(x = Income_Bin, y = CPC, color = Race)) +
+  geom_line()

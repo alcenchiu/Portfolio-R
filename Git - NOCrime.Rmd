@@ -1,0 +1,251 @@
+---
+title: "LACrime2"
+author: "Alcen Chiu"
+date: "2023-05-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("knitr")
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r reading in data}
+NO10 <- read.csv("NewOrleans_Incident_2010_geo_MT.csv")
+NO11 <- read.csv("NewOrleans_Incident_2011_geo_MT.csv")
+NO12 <- read.csv("NewOrleans_Incident_2012_geo_MT.csv")
+NO13 <- read.csv("NewOrleans_Incident_2013_geo_MT.csv")
+NOcensus <- read.csv("NOcensus.csv")
+
+write.csv(NOmeanoccurences, "C:\\Users\\alcenchiu\\Downloads\\FIPS.csv", row.names = FALSE)
+```
+
+```{r crime frequency in FIPS}
+# finding the number of occurences and frequency for each FIP
+crimebyFIPS10 <- NO10 %>%
+  group_by(FIPS) %>%
+  summarise(n = n()) %>%
+  mutate(Freq = n/sum(n))
+crimebyFIPS11 <- NO11 %>%
+  group_by(FIPS) %>%
+  summarise(n = n()) %>%
+  mutate(Freq = n/sum(n))
+crimebyFIPS12 <- NO12 %>%
+  group_by(FIPS) %>%
+  summarise(n = n()) %>%
+  mutate(Freq = n/sum(n))
+crimebyFIPS13 <- NO13 %>%
+  group_by(FIPS) %>%
+  summarise(n = n()) %>%
+  mutate(Freq = n/sum(n))
+# joining the FIP occurences and frequency by FIPS across all years
+NOjointdataset <- merge(crimebyFIPS10, crimebyFIPS11, by = 'FIPS')
+NOjointdataset <- merge(NOjointdataset, crimebyFIPS12, by = 'FIPS')
+NOjointdataset <- merge(NOjointdataset, crimebyFIPS13, by = 'FIPS')
+colnames(NOjointdataset) <- c('FIPS', '2010 Occurences', '2010 Frequency', '2011 Occurences', '2011 Frequency', '2012 Occurences', '2012 Frequency', '2013 Occurences', '2013 Frequency')
+NOjointoccurences <- NOjointdataset %>% select('2010 Occurences','2011 Occurences','2012 Occurences','2013 Occurences')
+# calculating the mean number of occurence from 2010-2013
+NOjointoccurences$'Mean Occurence/Year' = rowMeans(NOjointoccurences, na.rm=TRUE)
+NOmeanoccurences <- data.frame(NOjointdataset$FIPS, NOjointoccurences$'Mean Occurence/Year')
+colnames(NOmeanoccurences) <- c('FIPS', 'Mean Occurence/Year')
+```
+
+```{r transposing data NEW}
+#splitting the census data into income data
+NOcensus <- NOcensus[-c(1), ]
+NOincome <- NOcensus %>% select(FIPS, Households., Households..Less.than..10.000, Households...10.000.to..14.999, Households...15.000.to..19.999, Households...20.000.to..24.999, Households...25.000.to..29.999, Households...30.000.to..34.999, Households...35.000.to..39.999, Households...40.000.to..44.999, Households...45.000.to..49.999, Households...50.000.to..59.999, Households...60.000.to..74.999, Households...75.000.to..99.999, Households...100.000.to..124.999, Households...125.000.to..149.999, Households...150.000.to..199.999, Households...200.000.or.More)
+NOpercentincome <- NOcensus %>% select(FIPS, X..Households..Less.than..10.000, X..Households...10.000.to..14.999, X..Households...15.000.to..19.999, X..Households...20.000.to..24.999, X..Households...25.000.to..29.999, X..Households...30.000.to..34.999, X..Households...35.000.to..39.999, X..Households...40.000.to..44.999, X..Households...45.000.to..49.999, X..Households...50.000.to..59.999, X..Households...60.000.to..74.999, X..Households...75.000.to..99.999, X..Households...100.000.to..124.999, X..Households...125.000.to..149.999, X..Households...150.000.to..199.999, X..Households...200.000.or.More)
+# splitting the census data in race data
+NOrace <- NOcensus %>% select(FIPS, Total.Population, Total.Population..Not.Hispanic.or.Latino..White.Alone, Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone, Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone, Total.Population..Not.Hispanic.or.Latino..Asian.Alone, Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone, Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone, Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races, Total.Population..Hispanic.or.Latino)
+NOpercentrace <- NOcensus %>% select(FIPS, X..Total.Population..Not.Hispanic.or.Latino..White.Alone, X..Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone, X..Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone, X..Total.Population..Not.Hispanic.or.Latino..Asian.Alone, X..Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone, X..Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone, X..Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races, X..Total.Population..Hispanic.or.Latino)
+# transposing the race data from wide to long
+NOrace_long <- gather(NOrace, Race, People, Total.Population..Not.Hispanic.or.Latino..White.Alone:Total.Population..Hispanic.or.Latino, factor_key=TRUE)
+NOpercentrace_long <- gather(NOpercentrace, PercentRace, Share, X..Total.Population..Not.Hispanic.or.Latino..White.Alone:X..Total.Population..Hispanic.or.Latino, factor_key=TRUE)
+NOjointrace <- cbind(NOrace_long, NOpercentrace_long)
+# joining transposed race data with income data
+NOjointincomerace <- cbind(NOjointrace, NOincome, NOpercentincome)
+# transposing income data to align with transposed race data
+NOjointincomerace1 <- gather(NOjointincomerace, IncomeBin, Households, Households..Less.than..10.000:Households...200.000.or.More, factor_key = TRUE )
+NOjointincomerace1 <- NOjointincomerace1 %>% select(-5, -8, -10) 
+NOjointincomerace1 <- NOjointincomerace1 %>% arrange(pick(FIPS))
+NOjointincomerace1 <- NOjointincomerace1 %>% select(FIPS, Race, People, PercentRace, Share, IncomeBin, Households)
+NOjointincomerace2 <- gather(NOjointincomerace, PercentIncomeBin, IncomeShare,X..Households..Less.than..10.000:X..Households...200.000.or.More, factor_key = TRUE )
+NOjointincomerace2 <- NOjointincomerace2 %>% select(-5, -8, -26) 
+NOjointincomerace2 <- NOjointincomerace2 %>% arrange(pick(FIPS))
+NOjointincomerace3 <- NOjointincomerace2 %>% select(FIPS, Race, People, PercentRace, Share, PercentIncomeBin, IncomeShare)
+NOjointincomerace4 <- NOjointincomerace3 %>% select(PercentIncomeBin, IncomeShare)
+NOjointincomerace5 <- cbind(NOjointincomerace1, NOjointincomerace4)
+# creating a new column calculating income share by race share
+NOjointincomerace5$Share <- as.numeric(NOjointincomerace5$Share)
+NOjointincomerace5$IncomeShare <- as.numeric(NOjointincomerace5$IncomeShare)
+NOjointincomerace5$Share <- NOjointincomerace5$Share/100
+NOjointincomerace5$IncomeShare <- NOjointincomerace5$IncomeShare/100
+NOjointincomerace5$IncomexRaceShare <- NOjointincomerace5$Share*NOjointincomerace5$IncomeShare
+NOjointincomerace5$Households <- as.numeric(NOjointincomerace5$Households)
+NOjointincomerace5$IncomexRaceShare <- as.numeric(NOjointincomerace5$IncomexRaceShare)
+NOjointincomerace5$NewHouseholds <- (NOjointincomerace5$Households / NOjointincomerace5$IncomeShare) * (NOjointincomerace5$IncomexRaceShare)
+```
+
+```{r final data}
+# each row is a tract by race by income bin
+NOFinalData <- merge(NOjointincomerace5, NOmeanoccurences, by = "FIPS")
+NOpopulation <- NOrace %>% select(FIPS, Total.Population)
+NOFinalData2 <- merge(NOFinalData, NOpopulation, by = "FIPS")
+NOFinalData2$'Mean Occurence/Year' <- as.numeric(NOFinalData2$'Mean Occurence/Year')
+NOFinalData2$Total.Population <- as.numeric(NOFinalData2$Total.Population)
+NOFinalData2$'Crime/Capita' <- NOFinalData2$'Mean Occurence/Year'/ NOFinalData2$Total.Population
+
+NOFinalData2 <- NOFinalData2 %>%
+  mutate(IncomeBin = recode(IncomeBin, Households..Less.than..10.000 = '1', Households...10.000.to..14.999 = '2', Households...15.000.to..19.999 = '3', Households...20.000.to..24.999 = '4', Households...25.000.to..29.999 = '5', Households...30.000.to..34.999 = '6', Households...35.000.to..39.999 = '7', Households...40.000.to..44.999 = '8', Households...45.000.to..49.999 = '9', Households...50.000.to..59.999 = '10', Households...60.000.to..74.999 = '11', Households...75.000.to..99.999 = '12', Households...100.000.to..124.999 = '13', Households...125.000.to..149.999 = '14', Households...150.000.to..199.999 = '15', Households...200.000.or.More = '16'))
+NOFinalData2$Income <- NOFinalData2$IncomeBin
+NOFinalData2 <- NOFinalData2 %>%
+  mutate(Income = recode(Income, '1' = '5000', '2' = '12500', '3' = '17500', '4' = '22500', '5' = '27500', '6' = '32500', '7' = '37500', '8' = '42500', '9' = '47500', '10' = '55000', '11' = '67500', '12' = '87500', '13' = '112500', '14' = '137500', '15' = '175000', '16' = '240000'))
+NOFinalData2 <- NOFinalData2 %>% relocate('Income', .after = IncomeBin)
+NOFinalData2$IncomePercentile <- NOFinalData2$IncomeBin
+NOFinalData2 <- NOFinalData2 %>% relocate('IncomePercentile', .after = Income)
+NOFinalData2 <- NOFinalData2 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '1' = 3.0, '2' = 8.15, '3' = 12.5, '4' = 17.0, '5' = 21.5, '6' = 25.9, '7' = 30.3, '8' = 34.5, '9' = 38.5, '10' = 44.0, '11' = 52.8, '12' = 64.0, '13' = 74.9, '14' = 82.5, '15' = 88.9, '16' = 96.1))
+NOFinalData2 <- NOFinalData2 %>%
+  mutate(Race = recode(Race, Total.Population..Not.Hispanic.or.Latino..White.Alone = 'White', Total.Population..Hispanic.or.Latino = 'Hispanic/Latino', Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone = 'Black/African American', Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone = 'American Indian/Alaska Native', Total.Population..Not.Hispanic.or.Latino..Asian.Alone = 'Asian', Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone = 'Native Hawaiian/Pacific Islander', Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone = 'Other Race', Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races = 'Two or More Races'))
+NOFinalData2 <- NOFinalData2 %>% select(FIPS, Race, IncomeBin, Income, IncomePercentile, NewHouseholds, 'Mean Occurence/Year', 'Crime/Capita')
+# doing the weighted mean by households
+# Sort the dataframe by 'Race' and 'IncomeBin' columns
+NOFinalData2 <- NOFinalData2 %>%
+  mutate_at(vars(NewHouseholds, `Mean Occurence/Year`, `Crime/Capita`), as.numeric)
+NOFinalData2 <- NOFinalData2[complete.cases(NOFinalData2), ]
+# Calculate the weighted mean 'CPC' using 'crimes_per_capita' as values and 'num_of_people' as weights
+NOFinalData3 <- NOFinalData2 %>%
+  group_by(Race, IncomePercentile) %>%
+  mutate(CPC = `Crime/Capita`*NewHouseholds)
+NOHouseholds <- NOFinalData2 %>%
+  group_by(Race, IncomePercentile) %>%
+  summarize(TotalHouseholds = sum(NewHouseholds))
+NOFinalData3 <- NOFinalData3 %>% 
+  group_by(Race, IncomePercentile) %>%
+  summarize(CPCxHouseholds = sum(CPC))
+NOFinalData3 <- cbind(NOHouseholds, NOFinalData3)
+NOFinalData3 <- NOFinalData3 %>% select(Race...1, IncomePercentile...2, TotalHouseholds, CPCxHouseholds)
+NOFinalData3 <- rename(NOFinalData3, Race = Race...1, IncomePercentile = IncomePercentile...2)
+NOFinalData3$CPC <- NOFinalData3$CPCxHouseholds / NOFinalData3$TotalHouseholds
+NOFinalData4 <- NOFinalData3 %>% select(Race,IncomePercentile, CPC)
+
+#combining income bins and transforming to income percentile
+NOFinalData5 <- NOFinalData4 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '3.00' = 4.0, '8.15' = 4.0, '12.50' = 14, '17.00' = 14, '21.50' = 23, '25.90' = 23, '30.30' = 32, '34.50' = 32, '38.50' = 41, '44.00' = 41, '52.80' = 59, '64.00' = 59, '74.90' = 79, '82.50' = 79, '88.90' = 93, '96.10' = 93))
+NOFinalData5 <- NOFinalData5 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(mean_CPC = mean(CPC))
+NOFinalData5$mean_CPC_per1000 <- LAFinalData5$mean_CPC*1000
+NOFinalData6 <- NOFinalData5[NOFinalData5$Race == "Asian" | NOFinalData5$Race == "Black/African American" | NOFinalData5$Race == "Hispanic/Latino" | NOFinalData5$Race == "White",  ]
+#combining certain races
+NOFinalData7 <- NOFinalData5 %>%
+  mutate(Race = recode(Race, 'American Indian/Alaska Native' = 'Other Race', 'Native Hawaiian/Pacific Islander' = 'Other Race', 'Two or More Races' = 'Other Race'))
+NOFinalData7 <- NOFinalData7 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(new_CPC = mean(mean_CPC_per1000))
+```
+
+```{r figures}
+# final graphs, all races, subset, and second subset
+NOcrime1 <- ggplot(NOFinalData6, aes(x=IncomePercentile, y=mean_CPC_per1000)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'purple3', 'blue4', 'green3')) +
+    scale_linetype_manual(values=c("twodash", "solid", "dashed", "dotted")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(45, 68)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+NOcrime2 <- ggplot(NOFinalData5, aes(x=IncomePercentile, y=mean_CPC_per1000)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2', 'green3')) +
+  scale_linetype_manual(values=c("twodash", "solid", "dotdash", "dashed", "1F", "12345678", "dashed", "dotted")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(43, 70)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+NOcrime3 <- ggplot(NOFinalData7, aes(x=IncomePercentile, y=new_CPC)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'purple3', 'red2', 'blue4', 'green3')) +
+    scale_linetype_manual(values=c("twodash", "solid", "longdash", "dashed", "dotted")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(45,67)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+ggsave("NOgraph_crime_all.pdf", NOcrime2, path = "/Users/alcenchiu/Downloads")
+ggsave("NOgraph_crime_subset1.pdf", NOcrime1, path = "/Users/alcenchiu/Downloads")
+ggsave("NOgraph_crime_subset2.pdf", NOcrime3, path = "/Users/alcenchiu/Downloads")
+```
+
+OLD STUFF
+# doing the weighted mean by households
+# first sum the total households in each tract by race and income bin
+NOFinalData2$Households <- as.numeric(NOFinalData2$Households)
+NOsum_of_households <- NOFinalData2 %>%
+  group_by(Race, IncomeBin) %>%
+  summarize(sum_of_households = sum(Households))
+# then multiply the crime-per-capita by number of households for each tract by income bin and race  
+NOFinalData2$'Crime/Capita' <- as.numeric(NOFinalData2$'Crime/Capita') #ERROR
+NOCPCxHouseholds <- NOFinalData2 %>%
+  group_by(Race, IncomeBin) %>%
+  mutate(CPCxHouseholds = 'Crime/Capita' * Households) %>%
+  summarize(CPCxHouseholds = sum(CPCxHouseholds)) # then sum across each tract
+# put these two calculations side by side to do final calculations
+NOFinalData3 <- cbind(NOCPCxHouseholds, NOsum_of_households)
+NOFinalData3 <- NOFinalData3 %>% select(-one_of('Race...4','Income_Bin...5'))
+# divide the previously calculated CPCxHouseholds by household sum to complete weighted mean
+FinalData6 <- merge(CPCxHouseholds, sum_of_households, by = c("Race", "Income_Bin")) %>%
+  mutate(CPC = CPCxHouseholds / sum_of_households)
+# rename income bins to 1-16
+# create new column for average income for each bin
+FinalData7 <- FinalData6 %>%
+  mutate(Income_Bin = recode(Income_Bin, '1' = '5000', '2' = '12500', '3' = '17500', '4' = '22500', '5' = '27500', '6' = '32500', '7' = '37500', '8' = '42500', '9' = '47500', '10' = '55000', '11' = '67500', '12' = '87500', '13' = '112500', '14' = '137500', '15' = '175000', '16' = '240000'))
+FinalData7 <- FinalData7 %>% rename_at('Income_Bin', ~'Income')
+FinalData7$Income_Bin <- FinalData7$Income
+FinalData7 <- FinalData7 %>% relocate('Income_Bin', .after = Race)
+FinalData7 <- FinalData7 %>%
+  mutate(Income_Bin = recode(Income_Bin, '5000' = '1', '12500' = '2', '17500' = '3', '22500' = '4', '27500' = '5', '32500' = '6', '37500' = '7', '42500' = '8', '47500' = '9', '55000' = '10', '67500' = '11', '87500' = '12', '112500' = '13', '137500' = '14', '175000' = '15', '240000' = '16'))
+FinalData7 <- FinalData7 %>% select(-one_of('Income_Percentile'))
+# calculate the income percentile of each average income
+FinalData7$Income_Percentile <- FinalData7$Income_Bin
+FinalData7 <- FinalData7 %>% relocate('Income_Percentile', .after = Income)
+FinalData7 <- FinalData7 %>%
+  mutate(Income_Percentile = recode(Income_Percentile, '1' = 3.0, '2' = 8.15, '3' = 12.5, '4' = 17.0, '5' = 21.5, '6' = 25.9, '7' = 30.3, '8' = 34.5, '9' = 38.5, '10' = 44.0, '11' = 52.8, '12' = 64.0, '13' = 74.9, '14' = 82.5, '15' = 88.9, '16' = 96.1))
+#  create subset of only white, asian, hispanic, and black
+FinalData8 <- FinalData7[FinalData7$Race == "Asian" | FinalData7$Race == "Black/African American" | FinalData7$Race == "Hispanic" | FinalData7$Race == "White",  ]

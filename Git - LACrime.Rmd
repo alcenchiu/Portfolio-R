@@ -1,0 +1,830 @@
+---
+title: "LA"
+author: "Alcen Chiu"
+date: "2023-04-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("knitr")
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r reading in data}
+LAcrime <- read.csv("LosAngeles_Incident_2005_2019_geo_MT.csv")
+LAcensus <- read.csv("LAcensus.csv")
+tracthouseholds <- read.csv("tracthouseholds.csv")
+Income <- read.csv("Income.csv")
+```
+
+```{r crime frequency in FIPS}
+# finding the unique FIPS codes in the LA incident file
+uniqueFIPS <- LAcrime %>%
+  group_by(FIPS) %>%
+  summarise(n = n())
+newLA <- LAcrime %>% 
+  mutate(
+    year = case_when(
+      OCC.DATE > 20050000 & OCC.DATE < 20060000 ~ "2005",
+      OCC.DATE > 20060000 & OCC.DATE < 20070000 ~ "2006",
+      OCC.DATE > 20070000 & OCC.DATE < 20080000 ~ "2007",
+      OCC.DATE > 20080000 & OCC.DATE < 20090000 ~ "2008",
+      OCC.DATE > 20090000 & OCC.DATE < 20100000 ~ "2009",
+      OCC.DATE > 20100000 & OCC.DATE < 20110000 ~ "2010",
+      OCC.DATE > 20110000 & OCC.DATE < 20120000 ~ "2011",
+      OCC.DATE > 20120000 & OCC.DATE < 20130000 ~ "2012",
+      OCC.DATE > 20130000 & OCC.DATE < 20140000 ~ "2013",
+      OCC.DATE > 20140000 & OCC.DATE < 20150000 ~ "2014",
+      OCC.DATE > 20150000 & OCC.DATE < 20160000 ~ "2015",
+      OCC.DATE > 20160000 & OCC.DATE < 20170000 ~ "2016",
+      OCC.DATE > 20170000 & OCC.DATE < 20180000 ~ "2017",
+      OCC.DATE > 20180000 & OCC.DATE < 20190000 ~ "2018",
+      OCC.DATE > 20190000 & OCC.DATE < 20200000 ~ "2019", ))
+LAyr05 <- newLA[newLA$year %in% c("2005"), ]
+LAyr06 <- newLA[newLA$year %in% c("2006"), ]
+LAyr07 <- newLA[newLA$year %in% c("2007"), ]
+LAyr08 <- newLA[newLA$year %in% c("2008"), ]
+LAcrimebyFIPS05 <- LAyr05 %>%
+  group_by(FIPS) %>%
+  summarise(n = n())
+LAcrimebyFIPS06 <- LAyr06 %>%
+  group_by(FIPS) %>%
+  summarise(n = n())
+LAcrimebyFIPS07 <- LAyr07 %>%
+  group_by(FIPS) %>%
+  summarise(n = n())
+LAcrimebyFIPS08 <- LAyr08 %>%
+  group_by(FIPS) %>%
+  summarise(n = n())
+# joining the crime occurences and frequency by FIPS across all years
+LAjointcrimes <- merge(LAcrimebyFIPS05, LAcrimebyFIPS06, by = 'FIPS')
+LAjointcrimes <- merge(LAjointcrimes, LAcrimebyFIPS07, by = 'FIPS')
+LAjointcrimes <- merge(LAjointcrimes, LAcrimebyFIPS08, by = 'FIPS')
+colnames(LAjointcrimes) <- c('FIPS', '2005 Occurences', '2006 Occurences', '2007 Occurences', '2008 Occurences')
+LAjointcrimes1 <- LAjointcrimes %>% select('2005 Occurences', '2006 Occurences', '2007 Occurences', '2008 Occurences')
+LAjointcrimes1$'Mean Occurence/Year'<- rowMeans(LAjointcrimes1, na.rm=TRUE)
+LAjointcrimes2 <- merge(LAjointcrimes, LAjointcrimes1)
+LAjointcrimes2 <- LAjointcrimes2 %>% arrange(pick(FIPS))
+LAjointcrimes2 <- LAjointcrimes2 %>% select(FIPS, 'Mean Occurence/Year')
+```
+
+```{r transposing data NEW}
+LArace <- LAcensus %>% select(FIPS, Total.Population, Total.Population..Not.Hispanic.or.Latino..White.Alone, Total.Population..Hispanic.or.Latino, Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone, Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone, Total.Population..Not.Hispanic.or.Latino..Asian.Alone, Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone, Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone, Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races)
+LAracepercent <- LAcensus %>% select(X..Total.Population..Not.Hispanic.or.Latino..White.Alone, X..Total.Population..Hispanic.or.Latino, X..Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone, X..Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone, X..Total.Population..Not.Hispanic.or.Latino..Asian.Alone, X..Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone, X..Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone, X..Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races)
+LArace_long <- gather(LArace, Race, People, Total.Population..Not.Hispanic.or.Latino..White.Alone:Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races, factor_key=TRUE)
+LAracepercent_long <- gather(LAracepercent, PercentRace, Share, X..Total.Population..Not.Hispanic.or.Latino..White.Alone:X..Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races, factor_key=TRUE)
+LAjointrace <- cbind(LArace_long, LAracepercent_long)
+LAincome <- LAcensus %>% select(FIPS, Households., Households..Less.than..10.000, Households...10.000.to..14.999, Households...15.000.to..19.999, Households...20.000.to..24.999, Households...25.000.to..29.999, Households...30.000.to..34.999, Households...35.000.to..39.999, Households...40.000.to..44.999, Households...45.000.to..49.999, Households...50.000.to..59.999, Households...60.000.to..74.999, Households...75.000.to..99.999, Households...100.000.to..124.999, Households...125.000.to..149.999, Households...150.000.to..199.999, Households...200.000.or.More)
+LAincomepercent <- LAcensus %>% select(X..Households..Less.than..10.000, X..Households...10.000.to..14.999, X..Households...15.000.to..19.999, X..Households...20.000.to..24.999, X..Households...25.000.to..29.999, X..Households...30.000.to..34.999, X..Households...35.000.to..39.999, X..Households...40.000.to..44.999, X..Households...45.000.to..49.999, X..Households...50.000.to..59.999, X..Households...60.000.to..74.999, X..Households...75.000.to..99.999, X..Households...100.000.to..124.999, X..Households...125.000.to..149.999, X..Households...150.000.to..199.999, X..Households...200.000.or.More)
+LAjointincomerace <- cbind(LAjointrace, LAincome, LAincomepercent)
+LAjointincomerace2 <- gather(LAjointincomerace, IncomeBin, Households, Households..Less.than..10.000:Households...200.000.or.More, factor_key = TRUE )
+LAjointincomerace2 <- LAjointincomerace2 %>% select(-7)
+LAjointincomerace2 <- LAjointincomerace2 %>% select(FIPS, Race, People, PercentRace, Share, IncomeBin, Households)
+LAjointincomerace3 <- gather(LAjointincomerace, IncomePercent, IncomeShare,X..Households..Less.than..10.000:X..Households...200.000.or.More, factor_key = TRUE )
+LAjointincomerace3 <- LAjointincomerace3 %>% select(-7)
+LAjointincomerace3 <- LAjointincomerace3 %>% select(FIPS,'Race','People','PercentRace','Share', 'IncomePercent','IncomeShare')
+LAjointincomerace4 <- LAjointincomerace3 %>% select('IncomePercent','IncomeShare')
+LAjointincomerace5 <- cbind(LAjointincomerace2, LAjointincomerace4)
+LAjointincomerace5$Share <- as.numeric(LAjointincomerace5$Share)
+LAjointincomerace5$IncomeShare <- as.numeric(LAjointincomerace5$IncomeShare)
+LAjointincomerace5$Share <- LAjointincomerace5$Share/100
+LAjointincomerace5$IncomeShare <- LAjointincomerace5$IncomeShare/100
+LAjointincomerace5$'IncomexRaceShare' <- (LAjointincomerace5$`Share`*LAjointincomerace5$`IncomeShare`)
+LAjointincomerace5$Households <- as.numeric(LAjointincomerace5$Households)
+LAjointincomerace5$IncomexRaceShare <- as.numeric(LAjointincomerace5$IncomexRaceShare)
+LAjointincomerace5$NewHouseholds <- (LAjointincomerace5$Households / LAjointincomerace5$IncomeShare) * (LAjointincomerace5$IncomexRaceShare)
+LAjointincomerace5 <- LAjointincomerace5[-1, ]
+LAjointincomerace5$FIPS <- substring(LAjointincomerace5$FIPS, 2)
+```
+
+```{r final data}
+#each row is a tract by race by income bin
+LAFinalData <- merge(LAjointincomerace5, LAjointcrimes2, by = 'FIPS')
+LApopulation <- LArace %>% select(FIPS, Total.Population)
+LApopulation <- LApopulation[-1, ]
+LApopulation$FIPS <- substring(LApopulation$FIPS, 2)
+LAFinalData2 <- merge(LAFinalData, LApopulation, by = "FIPS")
+LAFinalData2$'Mean Occurence/Year' <- as.numeric(LAFinalData2$'Mean Occurence/Year')
+LAFinalData2$Total.Population <- as.numeric(LAFinalData2$Total.Population)
+LAFinalData2$'Crime/Capita' <- LAFinalData2$'Mean Occurence/Year'/ LAFinalData2$Total.Population
+# redoing income bins
+LAFinalData2 <- LAFinalData2 %>%
+  mutate(IncomeBin = recode(IncomeBin, Households..Less.than..10.000 = '1', Households...10.000.to..14.999 = '2', Households...15.000.to..19.999 = '3', Households...20.000.to..24.999 = '4', Households...25.000.to..29.999 = '5', Households...30.000.to..34.999 = '6', Households...35.000.to..39.999 = '7', Households...40.000.to..44.999 = '8', Households...45.000.to..49.999 = '9', Households...50.000.to..59.999 = '10', Households...60.000.to..74.999 = '11', Households...75.000.to..99.999 = '12', Households...100.000.to..124.999 = '13', Households...125.000.to..149.999 = '14', Households...150.000.to..199.999 = '15', Households...200.000.or.More = '16'))
+LAFinalData2$Income <- LAFinalData2$IncomeBin
+LAFinalData2 <- LAFinalData2 %>%
+  mutate(Income = recode(Income, '1' = '5000', '2' = '12500', '3' = '17500', '4' = '22500', '5' = '27500', '6' = '32500', '7' = '37500', '8' = '42500', '9' = '47500', '10' = '55000', '11' = '67500', '12' = '87500', '13' = '112500', '14' = '137500', '15' = '175000', '16' = '240000'))
+LAFinalData2 <- LAFinalData2 %>% relocate('Income', .after = IncomeBin)
+LAFinalData2$IncomePercentile <- LAFinalData2$IncomeBin
+LAFinalData2 <- LAFinalData2 %>% relocate('IncomePercentile', .after = Income)
+LAFinalData2 <- LAFinalData2 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '1' = 3.0, '2' = 8.15, '3' = 12.5, '4' = 17.0, '5' = 21.5, '6' = 25.9, '7' = 30.3, '8' = 34.5, '9' = 38.5, '10' = 44.0, '11' = 52.8, '12' = 64.0, '13' = 74.9, '14' = 82.5, '15' = 88.9, '16' = 96.1))
+LAFinalData2 <- LAFinalData2 %>%
+  mutate(Race = recode(Race, Total.Population..Not.Hispanic.or.Latino..White.Alone = 'White', Total.Population..Hispanic.or.Latino = 'Hispanic/Latino', Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone = 'Black/African American', Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone = 'American Indian/Alaska Native', Total.Population..Not.Hispanic.or.Latino..Asian.Alone = 'Asian', Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone = 'Native Hawaiian/Pacific Islander', Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone = 'Other Race', Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races = 'Two or More Races'))
+LAFinalData2 <- LAFinalData2 %>% select(FIPS, Race, IncomeBin, Income, IncomePercentile, NewHouseholds, 'Mean Occurence/Year', 'Crime/Capita')
+# doing the weighted mean by households
+# Sort the dataframe by 'Race' and 'IncomeBin' columns
+LAFinalData2 <- LAFinalData2 %>%
+  mutate_at(vars(NewHouseholds, `Mean Occurence/Year`, `Crime/Capita`), as.numeric)
+LAFinalData2 <- LAFinalData2[complete.cases(LAFinalData2), ]
+# Calculate the weighted mean 'CPC' using 'crimes_per_capita' as values and 'num_of_people' as weights
+LAFinalData3 <- LAFinalData2 %>%
+  group_by(Race, IncomePercentile) %>%
+  mutate(CPC = `Crime/Capita`*NewHouseholds)
+LAHouseholds <- LAFinalData2 %>%
+  group_by(Race, IncomePercentile) %>%
+  summarize(TotalHouseholds = sum(NewHouseholds))
+LAFinalData3 <- LAFinalData3 %>% 
+  group_by(Race, IncomePercentile) %>%
+  summarize(CPCxHouseholds = sum(CPC))
+LAFinalData3 <- cbind(LAHouseholds, LAFinalData3)
+LAFinalData3 <- LAFinalData3 %>% select(Race...1, IncomePercentile...2, TotalHouseholds, CPCxHouseholds)
+LAFinalData3 <- rename(LAFinalData3, Race = Race...1, IncomePercentile = IncomePercentile...2)
+LAFinalData3$CPC <- LAFinalData3$CPCxHouseholds / LAFinalData3$TotalHouseholds
+LAFinalData4 <- LAFinalData3 %>% select(Race,IncomePercentile, CPC)
+
+#combining income bins and transforming to income percentile
+LAFinalData5 <- LAFinalData4 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '3.00' = 4.0, '8.15' = 4.0, '12.50' = 14, '17.00' = 14, '21.50' = 23, '25.90' = 23, '30.30' = 32, '34.50' = 32, '38.50' = 41, '44.00' = 41, '52.80' = 59, '64.00' = 59, '74.90' = 79, '82.50' = 79, '88.90' = 93, '96.10' = 93))
+LAFinalData5 <- LAFinalData5 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(mean_CPC = mean(CPC))
+LAFinalData5$mean_CPC_per1000 <- LAFinalData5$mean_CPC*1000
+LAFinalData6 <- LAFinalData5[LAFinalData5$Race == "Asian" | LAFinalData5$Race == "Black/African American" | LAFinalData5$Race == "Hispanic/Latino" | LAFinalData5$Race == "White",  ]
+#combining certain races
+LAFinalData7 <- LAFinalData5 %>%
+  mutate(Race = recode(Race, 'American Indian/Alaska Native' = 'Other Race', 'Native Hawaiian/Pacific Islander' = 'Other Race', 'Two or More Races' = 'Other Race'))
+LAFinalData7 <- LAFinalData7 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(new_CPC = mean(mean_CPC_per1000))
+```
+
+```{r income exposure}
+# doing the weighted mean by households
+Income$`Income Bin One` <- Income$`Income.Bin.One`* 5000
+Income$`Income Bin Two` <- Income$`Income.Bin.Two`* 12500
+Income$`Income Bin Three` <- Income$`Income.Bin.Three`* 17500
+Income$`Income Bin Four` <- Income$`Income.Bin.Four`* 22500
+Income$`Income Bin Five` <- Income$`Income.Bin.Five`* 27500
+Income$`Income Bin Six` <- Income$`Income.Bin.Six`* 32500
+Income$`Income Bin Seven` <- Income$`Income.Bin.Seven`* 37500
+Income$`Income Bin Eight` <- Income$`Income.Bin.Eight`* 42500
+Income$`Income Bin Nine` <- Income$`Income.Bin.Nine`* 47500
+Income$`Income Bin Ten` <- Income$`Income.Bin.Ten`* 55000
+Income$`Income Bin Eleven` <- Income$`Income.Bin.Eleven`* 67500
+Income$`Income Bin Twelve` <- Income$`Income.Bin.Twelve`* 87500
+Income$`Income Bin Thirteen` <- Income$`Income.Bin.Thirteen`* 112500
+Income$`Income Bin Fourteen` <- Income$`Income.Bin.Fourteen`* 137500
+Income$`Income Bin Fifteen` <- Income$`Income.Bin.Fifteen`* 175000
+Income$`Income Bin Sixteen` <- Income$`Income.Bin.Sixteen`* 240000
+LAIncome2 <- Income %>% select('Income Bin One':'Income Bin Sixteen')
+LAIncome2$'AvgIncome' = rowSums(LAIncome2, na.rm=TRUE)
+LAIncome2$AvgIncome = LAIncome2$AvgIncome / tracthouseholds$SE_A14001_001
+LAIncome2 <- cbind(LAIncome2, Income)
+LAIncome2 <- LAIncome2 %>% select('1',Geo_FIPS)
+LAIncome2 <- LAIncome2 %>% relocate('1', .after = Geo_FIPS)
+LAIncome2 <- rename(LAIncome2, AvgIncome = '1', FIPS = Geo_FIPS)
+LAIncome3 <- merge(LAIncome2, LAFinalData, by = 'FIPS')
+
+# redoing income bins
+LAIncome3 <- LAIncome3 %>%
+  mutate(IncomeBin = recode(IncomeBin, Households..Less.than..10.000 = '1', Households...10.000.to..14.999 = '2', Households...15.000.to..19.999 = '3', Households...20.000.to..24.999 = '4', Households...25.000.to..29.999 = '5', Households...30.000.to..34.999 = '6', Households...35.000.to..39.999 = '7', Households...40.000.to..44.999 = '8', Households...45.000.to..49.999 = '9', Households...50.000.to..59.999 = '10', Households...60.000.to..74.999 = '11', Households...75.000.to..99.999 = '12', Households...100.000.to..124.999 = '13', Households...125.000.to..149.999 = '14', Households...150.000.to..199.999 = '15', Households...200.000.or.More = '16'))
+LAIncome3$Income <- LAIncome3$IncomeBin
+LAIncome3 <- LAIncome3 %>%
+  mutate(Income = recode(Income, '1' = '5000', '2' = '12500', '3' = '17500', '4' = '22500', '5' = '27500', '6' = '32500', '7' = '37500', '8' = '42500', '9' = '47500', '10' = '55000', '11' = '67500', '12' = '87500', '13' = '112500', '14' = '137500', '15' = '175000', '16' = '240000'))
+LAIncome3 <- LAIncome3 %>% relocate('Income', .after = IncomeBin)
+LAIncome3$IncomePercentile <- LAIncome3$IncomeBin
+LAIncome3 <- LAIncome3 %>% relocate('IncomePercentile', .after = Income)
+LAIncome3 <- LAIncome3 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '1' = 3.0, '2' = 8.15, '3' = 12.5, '4' = 17.0, '5' = 21.5, '6' = 25.9, '7' = 30.3, '8' = 34.5, '9' = 38.5, '10' = 44.0, '11' = 52.8, '12' = 64.0, '13' = 74.9, '14' = 82.5, '15' = 88.9, '16' = 96.1))
+LAIncome3 <- LAIncome3 %>%
+  mutate(Race = recode(Race, Total.Population..Not.Hispanic.or.Latino..White.Alone = 'White', Total.Population..Hispanic.or.Latino = 'Hispanic/Latino', Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone = 'Black/African American', Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone = 'American Indian/Alaska Native', Total.Population..Not.Hispanic.or.Latino..Asian.Alone = 'Asian', Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone = 'Native Hawaiian/Pacific Islander', Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone = 'Other Race', Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races = 'Two or More Races'))
+LAIncome3 <- LAIncome3 %>% select(FIPS, Race, IncomePercentile, NewHouseholds, AvgIncome)
+# doing the weighted mean by households
+# Sort the dataframe by 'Race' and 'IncomeBin' columns
+LAIncome3 <- LAIncome3 %>%
+  mutate_at(vars(NewHouseholds, AvgIncome), as.numeric)
+LAIncome3 <- LAIncome3[complete.cases(LAIncome3), ]
+# Calculate the weighted mean 'CPC' using 'crimes_per_capita' as values and 'num_of_people' as weights
+LAIncome4 <- LAIncome3 %>%
+  group_by(Race, IncomePercentile) %>%
+  mutate(IncomeExp = AvgIncome*NewHouseholds)
+LAIHouseholds <- LAIncome3 %>%
+  group_by(Race, IncomePercentile) %>%
+  summarize(TotalHouseholds = sum(NewHouseholds))
+LAIncome4 <- LAIncome4 %>% 
+  group_by(Race, IncomePercentile) %>%
+  summarize(sumIncomeExp = sum(IncomeExp))
+LAIncome4 <- cbind(LAIHouseholds, LAIncome4)
+LAIncome4 <- LAIncome4 %>% select(Race...1, IncomePercentile...2, TotalHouseholds, sumIncomeExp)
+LAIncome4 <- rename(LAIncome4, Race = Race...1, IncomePercentile = IncomePercentile...2)
+LAIncome4$AvgIncome <- LAIncome4$sumIncomeExp / LAIncome4$TotalHouseholds
+LAIncome5 <- LAIncome4 %>% select(Race,IncomePercentile, AvgIncome)
+
+#combining income bins and transforming to income percentile
+LAIncome6 <- LAIncome5 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '3.00' = 4.0, '8.15' = 4.0, '12.50' = 14, '17.00' = 14, '21.50' = 23, '25.90' = 23, '30.30' = 32, '34.50' = 32, '38.50' = 41, '44.00' = 41, '52.80' = 59, '64.00' = 59, '74.90' = 79, '82.50' = 79, '88.90' = 93, '96.10' = 93))
+LAIncome6 <- LAIncome6 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(mean_AvgIncome = mean(AvgIncome))
+LAIncome7 <- LAIncome6[LAIncome6$Race == "Asian" | LAIncome6$Race == "Black/African American" | LAIncome6$Race == "Hispanic/Latino" | LAIncome6$Race == "White",  ]
+#combining certain races
+LAIncome8 <- LAIncome6 %>%
+  mutate(Race = recode(Race, 'American Indian/Alaska Native' = 'Other Race', 'Native Hawaiian/Pacific Islander' = 'Other Race', 'Two or More Races' = 'Other Race'))
+LAIncome8 <- LAIncome8 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(new_AvgIncome = mean(mean_AvgIncome))
+```
+
+```{r race exposure}
+# prepping data
+LARaceExp <- LAjointincomerace5 %>% select(FIPS, Race, Share, IncomeBin, NewHouseholds)
+LARaceExp <- LARaceExp %>%
+  mutate(IncomeBin = recode(IncomeBin, Households..Less.than..10.000 = '1', Households...10.000.to..14.999 = '2', Households...15.000.to..19.999 = '3', Households...20.000.to..24.999 = '4', Households...25.000.to..29.999 = '5', Households...30.000.to..34.999 = '6', Households...35.000.to..39.999 = '7', Households...40.000.to..44.999 = '8', Households...45.000.to..49.999 = '9', Households...50.000.to..59.999 = '10', Households...60.000.to..74.999 = '11', Households...75.000.to..99.999 = '12', Households...100.000.to..124.999 = '13', Households...125.000.to..149.999 = '14', Households...150.000.to..199.999 = '15', Households...200.000.or.More = '16'))
+LARaceExp$Income <- LARaceExp$IncomeBin
+LARaceExp <- LARaceExp %>%
+  mutate(Income = recode(Income, '1' = '5000', '2' = '12500', '3' = '17500', '4' = '22500', '5' = '27500', '6' = '32500', '7' = '37500', '8' = '42500', '9' = '47500', '10' = '55000', '11' = '67500', '12' = '87500', '13' = '112500', '14' = '137500', '15' = '175000', '16' = '240000'))
+LARaceExp <- LARaceExp %>% relocate('Income', .after = IncomeBin)
+LARaceExp$IncomePercentile <- LARaceExp$IncomeBin
+LARaceExp <- LARaceExp %>% relocate('IncomePercentile', .after = Income)
+LARaceExp <- LARaceExp %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '1' = 3.0, '2' = 8.15, '3' = 12.5, '4' = 17.0, '5' = 21.5, '6' = 25.9, '7' = 30.3, '8' = 34.5, '9' = 38.5, '10' = 44.0, '11' = 52.8, '12' = 64.0, '13' = 74.9, '14' = 82.5, '15' = 88.9, '16' = 96.1))
+LARaceExp <- LARaceExp %>%
+  mutate(Race = recode(Race, Total.Population..Not.Hispanic.or.Latino..White.Alone = 'White', Total.Population..Hispanic.or.Latino = 'Hispanic/Latino', Total.Population..Not.Hispanic.or.Latino..Black.or.African.American.Alone = 'Black/African American', Total.Population..Not.Hispanic.or.Latino..American.Indian.and.Alaska.Native.Alone = 'American Indian/Alaska Native', Total.Population..Not.Hispanic.or.Latino..Asian.Alone = 'Asian', Total.Population..Not.Hispanic.or.Latino..Native.Hawaiian.and.Other.Pacific.Islander.Alone = 'Native Hawaiian/Pacific Islander', Total.Population..Not.Hispanic.or.Latino..Some.Other.Race.Alone = 'Other Race', Total.Population..Not.Hispanic.or.Latino..Two.or.More.Races = 'Two or More Races'))
+LARaceExp <- LARaceExp %>% select(FIPS, Race, Share, IncomePercentile, NewHouseholds)
+# by race exposure
+# exposure to non-white
+LAtest <- LAjointrace[LAjointrace$Race == 'Total.Population..Not.Hispanic.or.Latino..White.Alone', ]
+LAtest <- LAtest[-1, ]
+LAtest$FIPS <- substring(LAtest$FIPS, 2)
+LAtest <- LAtest %>%
+  mutate(Race = recode(Race, Total.Population..Not.Hispanic.or.Latino..White.Alone = 'White'))
+LAtest <- LAtest %>% select(FIPS, Share)
+LAtest <- rename(LAtest, NewShare = Share)
+LAtest <- merge(LARaceExp, LAtest, by = 'FIPS')
+LAtest <- LAtest %>% select(FIPS, Race, IncomePercentile, NewHouseholds, NewShare)
+LAtest$NewShare <- as.numeric(LAtest$NewShare)
+LAtest$NewShare <- (100 - LAtest$NewShare)/100
+LAtest <- LAtest[complete.cases(LAtest), ]
+LAtest2 <- LAtest %>%
+  group_by(Race, IncomePercentile) %>%
+  mutate(ShareExp = `NewShare`*NewHouseholds)
+LAtestHouseholds <- LAtest %>%
+  group_by(Race, IncomePercentile) %>%
+  summarize(TotalHouseholds = sum(NewHouseholds))
+LAtest3 <- LAtest2 %>% 
+  group_by(Race, IncomePercentile) %>%
+  summarize(SharexHouseholds = sum(ShareExp))
+LAtest4 <- cbind(LAtest3, LAtestHouseholds)
+LAtest4 <- LAtest4 %>% select(Race...1, IncomePercentile...2, TotalHouseholds, SharexHouseholds)
+LAtest4 <- rename(LAtest4, Race = Race...1, IncomePercentile = IncomePercentile...2)
+LAtest4$ShareExp <- LAtest4$SharexHouseholds / LAtest4$TotalHouseholds
+LAtest4 <- LAtest4 %>% select(Race, IncomePercentile, ShareExp)
+LAtest5 <- LAtest4 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '3.00' = 4.0, '8.15' = 4.0, '12.50' = 14, '17.00' = 14, '21.50' = 23, '25.90' = 23, '30.30' = 32, '34.50' = 32, '38.50' = 41, '44.00' = 41, '52.80' = 59, '64.00' = 59, '74.90' = 79, '82.50' = 79, '88.90' = 93, '96.10' = 93))
+LAtest5 <- LAtest5 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(mean_Share = mean(ShareExp))
+LAtest6 <- LAtest5[LAtest5$Race == "Asian" | LAtest5$Race == "Black/African American" | LAtest5$Race == "Hispanic/Latino" | LAtest5$Race == "White",  ]
+#combining certain races
+LAtest7 <- LAtest5 %>%
+  mutate(Race = recode(Race, 'American Indian/Alaska Native' = 'Other Race', 'Native Hawaiian/Pacific Islander' = 'Other Race', 'Two or More Races' = 'Other Race'))
+LAtest7 <- LAtest7 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(new_Share = mean(mean_Share))
+# doing the weighted mean by households
+LARaceExp <- LARaceExp[complete.cases(LARaceExp), ]
+LARaceExp2 <- LARaceExp %>%
+  group_by(Race, IncomePercentile) %>%
+  mutate(ShareExp = `Share`*NewHouseholds)
+LARaceHouseholds <- LARaceExp %>%
+  group_by(Race, IncomePercentile) %>%
+  summarize(TotalHouseholds = sum(NewHouseholds))
+LARaceExp3 <- LARaceExp2 %>% 
+  group_by(Race, IncomePercentile) %>%
+  summarize(SharexHouseholds = sum(ShareExp))
+LARaceExp4 <- cbind(LARaceExp3, LARaceHouseholds)
+LARaceExp4 <- LARaceExp4 %>% select(Race...1, IncomePercentile...2, TotalHouseholds, SharexHouseholds)
+LARaceExp4 <- rename(LARaceExp4, Race = Race...1, IncomePercentile = IncomePercentile...2)
+LARaceExp4$ShareExp <- LARaceExp4$SharexHouseholds / LARaceExp4$TotalHouseholds
+LARaceExp4 <- LARaceExp4 %>% select(Race, IncomePercentile, ShareExp)
+
+#combining income bins and transforming to income percentile
+LARaceExp5 <- LARaceExp4 %>%
+  mutate(IncomePercentile = recode(IncomePercentile, '3.00' = 4.0, '8.15' = 4.0, '12.50' = 14, '17.00' = 14, '21.50' = 23, '25.90' = 23, '30.30' = 32, '34.50' = 32, '38.50' = 41, '44.00' = 41, '52.80' = 59, '64.00' = 59, '74.90' = 79, '82.50' = 79, '88.90' = 93, '96.10' = 93))
+LARaceExp5 <- LARaceExp5 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(mean_Share = mean(ShareExp))
+LARaceExp6 <- LARaceExp5[LARaceExp5$Race == "Asian" | LARaceExp5$Race == "Black/African American" | LARaceExp5$Race == "Hispanic/Latino" | LARaceExp5$Race == "White",  ]
+#combining certain races
+LARaceExp7 <- LARaceExp5 %>%
+  mutate(Race = recode(Race, 'American Indian/Alaska Native' = 'Other Race', 'Native Hawaiian/Pacific Islander' = 'Other Race', 'Two or More Races' = 'Other Race'))
+LARaceExp7 <- LARaceExp7 %>% 
+  group_by(Race, IncomePercentile) %>% 
+  summarise(new_Share = mean(mean_Share))
+```
+
+```{r new figures}
+LAFinalData4$CPC <- LAFinalData4$CPC * 1000
+# crime exposure graphs, all races, subset, and second subset
+ggplot(LAFinalData4, aes(x=IncomePercentile, y=CPC)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(43, 70)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# income exposure figures, all races, subset, and second subset
+LAincome1 <- ggplot(LAIncome7, aes(x=IncomePercentile, y=mean_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green4', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Average Income", y="Average Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAincome2 <- ggplot(LAIncome6, aes(x=IncomePercentile, y=mean_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Average Income", y="Average Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAincome3 <- ggplot(LAIncome8, aes(x=IncomePercentile, y=new_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Average Income", y="Average Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# race exposure figures, all races, subset, and second subset
+LArace1 <- ggplot(LARaceExp6, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green4', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.2, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LArace2 <- ggplot(LARaceExp5, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.01, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LArace3 <- ggplot(LARaceExp7, aes(x=IncomePercentile, y=new_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.01, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# non-white exposure figures, all races, subset, and second subset
+LAnonwhiterace1 <- ggplot(LAtest6, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAnonwhiterace2 <- ggplot(LAtest5, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green3', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAnonwhiterace3 <- ggplot(LAtest7, aes(x=IncomePercentile, y=new_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+ggsave("graph_crime_all.pdf", LAcrime2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_crime_subset1.pdf", LAcrime1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_crime_subset2.pdf", LAcrime3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_all.pdf", LAincome2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_subset1.pdf", LAincome1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_subset2.pdf", LAincome3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_all.pdf", LArace2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_subset1.pdf", LArace1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_subset2.pdf", LArace3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_all.pdf", LAnonwhiterace2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_subset1.pdf", LAnonwhiterace1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_subset2.pdf", LAnonwhiterace3, path = "/Users/alcenchiu/Downloads")
+```
+
+```{r figures}
+# crime exposure graphs, all races, subset, and second subset
+LAcrime1 <- ggplot(LAFinalData6, aes(x=IncomePercentile, y=mean_CPC_per1000)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green4', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(43, 70)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAcrime2 <- ggplot(LAFinalData5, aes(x=IncomePercentile, y=mean_CPC_per1000)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(43, 70)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAcrime3 <- ggplot(LAFinalData7, aes(x=IncomePercentile, y=new_CPC)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(43, 70)) + 
+  labs(title="Income Percentile vs CPC", y="Crimes-Per-1000 Capita", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# income exposure figures, all races, subset, and second subset
+LAincome1 <- ggplot(LAIncome7, aes(x=IncomePercentile, y=mean_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green4', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Average Income", y="Average Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAincome2 <- ggplot(LAIncome6, aes(x=IncomePercentile, y=mean_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Median Income", y="Median Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAincome3 <- ggplot(LAIncome8, aes(x=IncomePercentile, y=new_AvgIncome)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(59000, 140000)) + 
+  labs(title="Income Percentile vs Median Income", y="Median Income Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# race exposure figures, all races, subset, and second subset
+LArace1 <- ggplot(LARaceExp6, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green4', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.2, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LArace2 <- ggplot(LARaceExp5, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green4', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.01, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LArace3 <- ggplot(LARaceExp7, aes(x=IncomePercentile, y=new_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.01, .7)) + 
+  labs(title="Income Percentile vs Same Race Exposure", y="Same Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+
+# non-white exposure figures, all races, subset, and second subset
+LAnonwhiterace1 <- ggplot(LAtest6, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) + 
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") +  
+  labs(subtitle="Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAnonwhiterace2 <- ggplot(LAtest5, aes(x=IncomePercentile, y=mean_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+  scale_color_manual(values=c('orange', 'green3', 'purple3', 'brown', 'blue4', 'pink', 'yellow2', 'grey2')) +
+  scale_linetype_manual(values=c("twodash", "dotted", "solid", "dotdash", "dashed", "1F", "12345678", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + 
+  labs(subtitle="All Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+LAnonwhiterace3 <- ggplot(LAtest7, aes(x=IncomePercentile, y=new_Share)) + 
+  geom_line(aes(linetype=Race, col=Race), linewidth=.8) +
+  geom_point(aes(col=Race), size=1.5) +
+    scale_color_manual(values=c('orange', 'green3', 'purple3', 'red2', 'blue4')) +
+    scale_linetype_manual(values=c("twodash", "dotted", "solid", "longdash", "dashed")) +
+  coord_cartesian(xlim=c(0,100), ylim=c(.1, .9)) + 
+  labs(title="Income Percentile vs Non-White Race Exposure", y="Non-White Race Exposure", x="Income Percentile") +
+  theme(legend.position="bottom", legend.box = "horizontal") + labs(subtitle="Second Subset of Races") +
+  theme(panel.background = element_rect(fill = 'white'),
+          panel.grid.major = element_line(colour = "black", size=0.1),
+          panel.grid.minor = element_line(colour = "black", 
+                                          size=.1),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black", 
+                                     size=0.1, 
+                                     lineend = "butt"),
+          axis.line.y = element_line(colour = "black", 
+                                     size=.1))
+ggsave("graph_crime_all.pdf", LAcrime2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_crime_subset1.pdf", LAcrime1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_crime_subset2.pdf", LAcrime3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_all.pdf", LAincome2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_subset1.pdf", LAincome1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_income_subset2.pdf", LAincome3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_all.pdf", LArace2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_subset1.pdf", LArace1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_race_subset2.pdf", LArace3, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_all.pdf", LAnonwhiterace2, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_subset1.pdf", LAnonwhiterace1, path = "/Users/alcenchiu/Downloads")
+ggsave("graph_nonwhiterace_subset2.pdf", LAnonwhiterace3, path = "/Users/alcenchiu/Downloads")
+```
+
+LAFinalData5 <- LAFinalData4 %>%
+  mutate(IncomeBin = recode(IncomeBin, '1' = '1', '2' = '1', '3' = '2', '4' = '2', '5' = '3', '6' = '3', '7' = '4', '8' = '4', '9' = '5', '10' = '5', '11' = '6', '12' = '6', '13' = '7', '14' = '7', '15' = '8', '16' = '8'))
+LAFinalData6 <- LAFinalData6 %>%
+  mutate(Income = recode(Income, '5000' = '8750', '12500' = '8750', '17500' = '20000', '22500' = '20000', '27500' = '30000', '32500' = '30000', '37500' = '40000', '42500' = '40000', '47500' = '51250', '55000' = '51250', '67500' = '77500', '87500' = '77500', '112500' = '125000', '137500' = '125000', '175000' = '207500', '240000' = '207500'))
+
+theme(legend.title = element_text(size=12, color = "black"),
+           legend.justification=c(1,0), 
+           legend.position=c(0.94, 0.55),  
+           legend.background = element_rect(fill='white'),
+           legend.key = element_blank()) + 
+
+library(tidyr)
+library(dplyr)
+
+ggplot(FinalData6, aes(x=Income_Bin, y=CPC)) + 
++ geom_line(aes(col=Race), size=1) + 
++ coord_cartesian(xlim=c(0,17), ylim=c(.045, .055)) + 
++ labs(title="Income Bin Vs CPC", y="Crimes-Per-Capita", x="Income Bin")
+FinalData4 <- FinalData3 %>% 
+  group_by(Race, Income_Bin) %>% 
+  summarize(CPC = weighted.mean(x = 'Crime/Capita', w = Households)) 
+
+newcensus <- new_census %>% select(-one_of('Name of Area', 'Qualifying Name', 'State/U.S.-Abbreviation (USPS)', 'Summary Level', 'Geographic Component', 'File Identification', 'Logical Record Number', 'State (FIPS)', 'County', 'Census Tract', 'Geographic Identifier', 'Area (Land)', 'Area (Water)')) 
+basecensus <- newcensus %>% select(-one_of('Total Population:','Total Population: White Alone','Total Population: Black or African American Alone','Total Population: American Indian and Alaska Native Alone','Total Population: Asian Alone','Total Population: Native Hawaiian and Other Pacific Islander Alone','Total Population: Some Other Race Alone','Total Population: Two or More Races','Households:'))
+basecensusv2 <- newcensus %>% select('FIPS', 'Total Population:','Total Population: White Alone','Total Population: Black or African American Alone','Total Population: American Indian and Alaska Native Alone','Total Population: Asian Alone','Total Population: Native Hawaiian and Other Pacific Islander Alone','Total Population: Some Other Race Alone','Total Population: Two or More Races')
+census_long <- gather(newcensus, Income_Bin, Households, `Households:`:`Households: $200,000 or More`, factor_key = TRUE)
+census_wide <- spread(newcensus, FIPS, measurement)
+long_to_wide <- newcensus %>% pivot_wider(names_from = FIPS, values_from = 'Total Population: White Alone')
+wide_to_long <- long_to_wide %>% pivot_longer(cols=c(`Households: Less than $10,000`:`Households: $200,000 or More`), names_to='Income Bin', values_to='Households') 
+basic_wide_to_long <- basecensus %>% pivot_longer(cols = 'Households: Less than $10,000':'Households: $200,000 or More', names_to = 'Income Bins', values_to = 'FIPS')
+newbasecensus <- t(basecensus)
+colnames(newbasecensus)<-unlist(newbasecensus["FIPS",])
+newbasecensus <- newbasecensus[!row.names(newbasecensus)=='FIPS',]
+newbasecensusv2 <- t(basecensusv2)
+colnames(newbasecensusv2)<-unlist(newbasecensusv2["FIPS",])
+newbasecensusv2 <- newbasecensusv2[!row.names(newbasecensusv2)=='FIPS',]
+original_colsv2 <- colnames(newbasecensusv2)
+colnames(newbasecensusv2) <- paste("FIPS" ,original_colsv2,sep="-")
+table <- sapply(newbasecensusv2, function(x) table(x)/nrow(newbasecensusv2))
+
+newjointincome <- jointincome %>% arrange(pick(starts_with("Geo_FIPS")))
+write.csv(newjointincome, "C:\\Users\\alcenchiu\\Downloads\\newjointincome.csv", row.names = FALSE)
+newjointrace <- jointrace %>% arrange(pick(starts_with("Geo_FIPS")))
+write.csv(newjointrace, "C:\\Users\\alcenchiu\\Downloads\\newjointrace.csv", row.names = FALSE)
